@@ -63,7 +63,7 @@ class Handler(object):
         default_settings = {
             'transport' : 'tcp',
             'address'   : '*',
-            'port'      : self.config.getint("Server", "manager_port")
+            'port'      : self.config.getint("Server", "manager_port_in")
             'type'      : zmq.REP
         }
         for s in settings:
@@ -94,5 +94,15 @@ class Handler(object):
         self.sockets = {}
         self.callbacks = {}
         self.polled_sockets = []
-        # instantiate a new manager connection
-        self.setup_socket('manager', self.manager_command)
+        # instantiate a new incomming manager connection
+        self.setup_socket('manager_in', self.manager_command)
+        # instantiate a new outgoing manager connection
+        self.setup_socket(
+            'manager_out',
+            poll=False,
+            settings={
+                'address'   : self.config.get("Server", "ip"),
+                'port'      : self.config.getint("Server", "manager_port_out")
+                'type'      : zmq.PUSH
+            }
+        )

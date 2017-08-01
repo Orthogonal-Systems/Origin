@@ -68,8 +68,18 @@ class Registration(Handler.Handler):
                 reg_obj['key_order']
             )
 
+        # send updated known streams object to manager for distribution
+        if result == 0:
+            # the manager out socket is a PUSH socket so no response is expected
+            self.socket['manager_out'].send({
+                'action'    : 'UPDATE_KNOWN_STREAMS',
+                'data'      : {
+                    'known_streams'         : self.dest.known_streams,
+                    'known_stream_versions' : self.dest.known_stream_versions
+                },
+            })
         # notify if error
-        if result != 0:
+        else:
             log = (
                 "Unable to register stream. Got msg that is badly "
                 "formatted: {}"

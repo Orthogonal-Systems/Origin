@@ -202,8 +202,10 @@ class Destination(object):
 
         @param stream a string holding the stream name
         @param template the stream definition dictionary
-        @return a tuple of (error, stream_ver) where error=0 for success, and
-            stream_ver is a byte string that serves as a unique identifier.
+        @return a tuple of (error, stream_ver, update) where error=0 for
+            success, stream_ver is a byte string that serves as a unique
+            identifier, and update is a Boolean that signals an update to the
+            known stream objects
         """
         update = False
         dest_version = None
@@ -234,7 +236,7 @@ class Destination(object):
                 return (1, 'server error')
             # update the current streams after all that
             self.read_stream_def_table()
-        return (0, struct.pack("!II", stream_id, dest_version))
+        return (0, struct.pack("!II", stream_id, dest_version), update)
 
     def insert_measurement(self, stream, measurements):
         """!@brief Save formated measurement to the destination.
@@ -346,7 +348,7 @@ class Destination(object):
         @param start 32b unix timestamp that defines the start of the data
             window
         @param stop 32b unix timestamp that defines the end of the data window
-        @param fields A list that contains the fields for which data is 
+        @param fields A list that contains the fields for which data is
             desired, the value of the dictionary key is arbitrary.
         @return a tuple with (error, data, msg)
             error: 0 for a successful operation
@@ -364,7 +366,7 @@ class Destination(object):
         @param start 32b unix timestamp that defines the start of the data
             window
         @param stop 32b unix timestamp that defines the end of the data window
-        @param fields A list that contains the fields for which data is 
+        @param fields A list that contains the fields for which data is
             desired, the value of the dictionary key is arbitrary.
         @return a tuple with (error, data, msg)
             error: 0 for a successful operation
@@ -374,7 +376,7 @@ class Destination(object):
         """
         try:
             result, stream_data, result_text = self.get_raw_stream_data(
-                stream, 
+                stream,
                 start=start,
                 stop=stop,
                 fields=fields
