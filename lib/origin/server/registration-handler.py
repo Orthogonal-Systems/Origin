@@ -32,6 +32,12 @@ class Registration(object):
         self.dest = destination
 
         self.context = zmq.Context()
+        # instantiate a new manager connection
+        man_addr = "tcp://*:{}"
+        man_port = self.config.getint("Server", "manager_port")
+        self.man_socket = self.context.socket(zmq.REP)
+        self.man_socket.bind(man_addr.format(man_port))
+
         # instantiate native registration socket
         reg_addr = "tcp://*:{}"
         reg_port = self.config.getint("Server", "register_port")
@@ -46,6 +52,7 @@ class Registration(object):
 
         # instantiate the poller
         self.poller = zmq.Poller()
+        self.poller.register(self.man_socket, zmq.POLLIN)
         self.poller.register(self.reg_socket, zmq.POLLIN)
         self.poller.register(self.json_reg_socket, zmq.POLLIN)
 
@@ -53,6 +60,11 @@ class Registration(object):
         self.loop()
 
     def decode_json_msg(self, msg):
+        """Decodes a JSON formated registration message.
+
+        @param msg A JSON formated registration string from a client
+        @return reg_obj A dictionary containing the registration information
+        """
         msg_decoded = json.loads(msg)
         reg_obj = {}
         reg_obj['stream'] = msg_decoded[0]
@@ -61,6 +73,13 @@ class Registration(object):
         return reg_obj
 
     def decode_msg(self, msg, format):
+        """Decodes a data stream registration string from a client.
+
+        @param msg A data stream registration string from a client 
+        @param format A string specifying the format type 'native' or 'json'
+        @return (result, result_text) result is a error code with 0 being no
+            error.  result_text is the response to be sent back to the sender.
+        """
         result = None
         result_text = None
         try:
@@ -95,6 +114,11 @@ class Registration(object):
         return (result, result_text)
 
     def decode_native_msg(self, msg):
+        """Decodes a natively formated registration message.
+
+        @param msg A natively formated registration string from a client
+        @return reg_obj A dictionary containing the registration information
+        """
         reg_obj = {}
         msg_decoded = msg.split(',')
         record_dict = {}
@@ -110,9 +134,16 @@ class Registration(object):
         return reg_obj
 
     def loop(self):
+        """A poller loop for the registration sockets"""
         should_continue = True
         while should_continue:
             socks = dict(self.poller.poll())
+            # check manager socket for new command
+            if (self.man_socket in socks and
+                    socks[self.man_socket] == zmq.POLLIN):
+                msg = self.man_socket.recv()
+                self.manager_command(msg)
+
             # check native registration socket
             if (self.reg_socket in socks and
                     socks[self.reg_socket] == zmq.POLLIN):
@@ -126,12 +157,20 @@ class Registration(object):
                 self.register_json_stream(msg)
 
     def register_json_stream(self, msg):
+        """Register a new json formatted data stream.
+        
+        @param msg A JSON formatted registration stream
+        """
         for m in msg:
             result, result_text = self.decode_msg(m, 'json')
             response = (str(result), result_text)
             self.reg_stream.send(','.join(response))
 
     def register_stream(self, msg):
+        """Register a new natively formatted data stream.
+        
+        @param msg A natively formatted registration stream
+        """
         for m in msg:
             result, result_text = self.decode_msg(m, 'native')
             response = (str(result), result_text)
