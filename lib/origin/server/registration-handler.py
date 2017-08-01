@@ -1,5 +1,6 @@
 import json
 import zmq
+import Handler
 
 
 def json_key_order(msg, record_dict):
@@ -20,44 +21,8 @@ def json_key_order(msg, record_dict):
     return key_order
 
 
-class Registration(object):
+class Registration(Handler.Handler):
     """A class for handling stream registration."""
-
-    def __init__(self, config, destination, logger=None):
-        """Initialize the class
-
-        @param logger python logger object
-        """
-        self.logger = logger
-        self.dest = destination
-
-        self.context = zmq.Context()
-        # instantiate a new manager connection
-        man_addr = "tcp://*:{}"
-        man_port = self.config.getint("Server", "manager_port")
-        self.man_socket = self.context.socket(zmq.REP)
-        self.man_socket.bind(man_addr.format(man_port))
-
-        # instantiate native registration socket
-        reg_addr = "tcp://*:{}"
-        reg_port = self.config.getint("Server", "register_port")
-        self.reg_socket = self.context.socket(zmq.REP)
-        self.reg_socket.bind(reg_addr.format(reg_port))
-
-        # instantiate json registration socket
-        json_reg_addr = "tcp://*:{}"
-        json_reg_port = self.config.getint("Server", "json_register_port")
-        self.json_reg_socket = self.context.socket(zmq.REP)
-        self.json_reg_socket.bind(json_reg_addr.format(json_reg_port))
-
-        # instantiate the poller
-        self.poller = zmq.Poller()
-        self.poller.register(self.man_socket, zmq.POLLIN)
-        self.poller.register(self.reg_socket, zmq.POLLIN)
-        self.poller.register(self.json_reg_socket, zmq.POLLIN)
-
-        # start the loop
-        self.loop()
 
     def decode_json_msg(self, msg):
         """Decodes a JSON formated registration message.
@@ -75,7 +40,7 @@ class Registration(object):
     def decode_msg(self, msg, format):
         """Decodes a data stream registration string from a client.
 
-        @param msg A data stream registration string from a client 
+        @param msg A data stream registration string from a client
         @param format A string specifying the format type 'native' or 'json'
         @return (result, result_text) result is a error code with 0 being no
             error.  result_text is the response to be sent back to the sender.
@@ -133,32 +98,9 @@ class Registration(object):
         reg_obj['key_order'] = json_key_order(msg, record_dict)
         return reg_obj
 
-    def loop(self):
-        """A poller loop for the registration sockets"""
-        should_continue = True
-        while should_continue:
-            socks = dict(self.poller.poll())
-            # check manager socket for new command
-            if (self.man_socket in socks and
-                    socks[self.man_socket] == zmq.POLLIN):
-                msg = self.man_socket.recv()
-                self.manager_command(msg)
-
-            # check native registration socket
-            if (self.reg_socket in socks and
-                    socks[self.reg_socket] == zmq.POLLIN):
-                msg = self.reg_socket.recv()
-                self.register_stream(msg)
-
-            # check json registration socket
-            if (self.json_reg_socket in socks and
-                    socks[self.json_reg_socket] == zmq.POLLIN):
-                msg = self.json_reg_socket.recv()
-                self.register_json_stream(msg)
-
     def register_json_stream(self, msg):
         """Register a new json formatted data stream.
-        
+
         @param msg A JSON formatted registration stream
         """
         for m in msg:
@@ -168,10 +110,33 @@ class Registration(object):
 
     def register_stream(self, msg):
         """Register a new natively formatted data stream.
-        
+
         @param msg A natively formatted registration stream
         """
         for m in msg:
             result, result_text = self.decode_msg(m, 'native')
             response = (str(result), result_text)
             self.reg_stream.send(','.join(response))
+
+    def setup_sockets(self):
+        """Setup the registration sockets for JSON and native formats, plus the
+        default sockets inherited from the parent class.
+        """
+        # setup the default sockets from the parent class
+        super(Registration, self).setup_sockets()
+        # setup the native registration socket
+        self.setup_socket(
+            'reg_native',
+            callback=register_stream
+            settings={
+                'port': self.config.getint("Server", "register_port")
+            }
+        )
+        # setup the json registration socket
+        self.setup_socket(
+            'reg_json',
+            callback=register_json_stream
+            settings={
+                'port': self.config.getint("Server", "json_register_port")
+            }
+        )
