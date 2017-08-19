@@ -304,8 +304,8 @@ class Destination(object):
         return self.measurement(stream, meas)
 
     def measurement_binary(self, stream, measurements):
-        """!@brief Process a binary list of implicitly ordered measurements, then save
-        to destination.
+        """!@brief Process a binary list of implicitly ordered measurements,
+        then save to destination.
 
         @param stream a string holding the stream name
         @param measurements an ordered byte array of the measurement data
@@ -314,7 +314,7 @@ class Destination(object):
             result_text: message to return to client
             measurements: processed data, empty dict if error
         """
-       fmtstr =  self.known_streams[stream]["format_str"]
+        fmtstr =  self.known_streams[stream]["format_str"]
         try:
             dtuple = struct.unpack_from(fmtstr, measurements)
         except:

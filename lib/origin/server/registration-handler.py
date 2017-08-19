@@ -1,5 +1,4 @@
 import json
-import zmq
 import Handler
 
 
@@ -70,7 +69,8 @@ class Registration(Handler.Handler):
 
         # send updated known streams object to manager for distribution
         if result == 0:
-            # the manager out socket is a PUSH socket so no response is expected
+            # the manager out socket is a PUSH socket so no response is
+            # expected
             self.socket['manager_out'].send({
                 'action'    : 'UPDATE_KNOWN_STREAMS',
                 'data'      : {
@@ -137,7 +137,7 @@ class Registration(Handler.Handler):
         # setup the native registration socket
         self.setup_socket(
             'reg_native',
-            callback=register_stream
+            callback=self.register_stream,
             settings={
                 'port': self.config.getint("Server", "register_port")
             }
@@ -145,7 +145,7 @@ class Registration(Handler.Handler):
         # setup the json registration socket
         self.setup_socket(
             'reg_json',
-            callback=register_json_stream
+            callback=self.register_json_stream,
             settings={
                 'port': self.config.getint("Server", "json_register_port")
             }

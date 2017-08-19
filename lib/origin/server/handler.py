@@ -1,4 +1,3 @@
-import json
 import zmq
 
 
@@ -22,8 +21,17 @@ class Handler(object):
             self.logger = logger
         # set up the sockets
         self.setup_sockets()
+        # handler specific initialization
+        self.initialize_handler()
         # start the loop
         self.loop()
+
+    def initialize_handler(self):
+        """Runs class specific initialization code.
+
+        Should be overwritten if necessary.
+        """
+        pass
 
     def loop(self):
         """A poller loop for the registration sockets"""
@@ -33,7 +41,7 @@ class Handler(object):
             for sock in self.polled_sockets:
                 # check registered socket for new command
                 if (self.sockets[sock] in socks and
-                        socks[self.sockets[sock] == zmq.POLLIN):
+                        socks[self.sockets[sock]] == zmq.POLLIN):
                     # read in the command
                     msg = self.sockets[sock].recv()
                     # pass message to the registered callback
@@ -63,7 +71,7 @@ class Handler(object):
         default_settings = {
             'transport' : 'tcp',
             'address'   : '*',
-            'port'      : self.config.getint("Server", "manager_port_in")
+            'port'      : self.config.getint("Server", "manager_port_in"),
             'type'      : zmq.REP
         }
         for s in settings:
@@ -102,7 +110,7 @@ class Handler(object):
             poll=False,
             settings={
                 'address'   : self.config.get("Server", "ip"),
-                'port'      : self.config.getint("Server", "manager_port_out")
+                'port'      : self.config.getint("Server", "manager_port_out"),
                 'type'      : zmq.PUSH
             }
         )
